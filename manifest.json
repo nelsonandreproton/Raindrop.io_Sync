@@ -1,0 +1,10 @@
+{
+  "id": "raindrop-obsidian-sync",
+  "name": "Raindrop.io Sync",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "Sync bookmarks from a Raindrop.io collection into dated Obsidian notes.",
+  "author": "nelsonandreproton",
+  "authorUrl": "https://github.com/nelsonandreproton",
+  "isDesktopOnly": true
+}
