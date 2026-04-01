@@ -24,8 +24,25 @@ function isTweet(item: Raindrop): boolean {
  *
  * Returns plain-text article body, or empty string on failure.
  */
+const SAFE_FETCH_SCHEMES = ["http:", "https:"];
+
+/** Returns true only if the link uses a safe, fetchable scheme. */
+function isSafeUrl(link: string): boolean {
+  try {
+    return SAFE_FETCH_SCHEMES.includes(new URL(link).protocol);
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchArticleText(item: Raindrop): Promise<string> {
   if (isTweet(item)) return "";
+
+  // Refuse to fetch non-http(s) URLs.
+  if (!isSafeUrl(item.link)) {
+    console.warn(`Raindrop Sync: skipping fetch for unsafe URL: ${item.link}`);
+    return item.excerpt ?? "";
+  }
 
   // Step 1 — use Raindrop cache if good enough
   if (item.excerpt && item.excerpt.length > 200) {
@@ -43,7 +60,12 @@ export async function fetchArticleText(item: Raindrop): Promise<string> {
       },
     });
 
-    if (response.status !== 200) return item.excerpt ?? "";
+    if (response.status !== 200) {
+      console.warn(
+        `Raindrop Sync: live fetch returned ${response.status} for ${item.link}`
+      );
+      return item.excerpt ?? "";
+    }
 
     // node-html-parser → DOM-like object → feed to Readability via DOMParser shim
     const root = parseHtml(response.text);
@@ -59,7 +81,11 @@ export async function fetchArticleText(item: Raindrop): Promise<string> {
 
     // Fall back to Raindrop excerpt even if short
     return item.excerpt ?? "";
-  } catch {
+  } catch (err) {
+    console.error(
+      `Raindrop Sync: failed to fetch article text for ${item.link}`,
+      err
+    );
     return item.excerpt ?? "";
   }
 }

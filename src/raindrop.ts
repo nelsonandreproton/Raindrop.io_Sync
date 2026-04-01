@@ -57,7 +57,12 @@ export async function fetchCollection(
 
     const data: ApiResponse = response.json;
 
-    if (!data.result || data.items.length === 0) break;
+    // Validate response shape before accessing fields.
+    if (!data || typeof data !== "object") {
+      throw new Error("Raindrop API returned an unexpected response format.");
+    }
+    if (!data.result) break;
+    if (!Array.isArray(data.items) || data.items.length === 0) break;
 
     for (const item of data.items) {
       if (item.type === "link" || item.type === "article") {
@@ -65,8 +70,9 @@ export async function fetchCollection(
       }
     }
 
-    // If we received fewer items than the page size we're on the last page.
-    if (data.items.length < PAGE_SIZE) break;
+    // Stop when the last page returns fewer items than requested.
+    // Also stop when we've collected all items reported by `count`.
+    if (data.items.length < PAGE_SIZE || results.length >= data.count) break;
     page++;
   }
 

@@ -34,15 +34,17 @@ export class RaindropSettingTab extends PluginSettingTab {
       .setDesc(
         "Your Raindrop.io Test Token. Get it from app.raindrop.io → Settings → Integrations → Create test token."
       )
-      .addText((text) =>
+      .addText((text) => {
+        // Mask the token so it is not displayed in plain text on screen.
+        text.inputEl.type = "password";
         text
           .setPlaceholder("paste token here")
           .setValue(this.plugin.settings.apiToken)
           .onChange(async (value) => {
             this.plugin.settings.apiToken = value.trim();
             await this.plugin.saveSettings();
-          })
-      );
+          });
+      });
 
     new Setting(containerEl)
       .setName("Collection ID")

@@ -1,4 +1,6 @@
 import { Notice, Plugin } from "obsidian";
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 import { RaindropSettings, DEFAULT_SETTINGS, RaindropSettingTab } from "./settings";
 import { SyncState, DEFAULT_DATA, PluginData } from "./syncState";
 import { fetchCollection } from "./raindrop";
@@ -110,9 +112,10 @@ export default class RaindropSyncPlugin extends Plugin {
       new Notice("Raindrop Sync: already running…");
       return;
     }
-    this.runSync().catch((err) => {
+    this.runSync().catch((err: unknown) => {
       console.error("Raindrop Sync error:", err);
-      new Notice(`Raindrop Sync failed: ${err.message}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      new Notice(`Raindrop Sync failed: ${msg}`);
     });
   }
 
@@ -132,6 +135,12 @@ export default class RaindropSyncPlugin extends Plugin {
         new Notice("Raindrop Sync: please set the Collection ID in settings.");
         return;
       }
+      if (!/^\d+$/.test(collectionId)) {
+        new Notice(
+          "Raindrop Sync: Collection ID must be numeric (e.g. 12345678)."
+        );
+        return;
+      }
 
       const items = await fetchCollection(apiToken, collectionId);
       const unsyncedItems = items.filter(
@@ -147,8 +156,11 @@ export default class RaindropSyncPlugin extends Plugin {
 
       let synced = 0;
       let failed = 0;
+      // Polite delay between outbound fetches to avoid hammering target sites.
+      const INTER_ITEM_DELAY_MS = 500;
 
-      for (const item of unsyncedItems) {
+      for (let i = 0; i < unsyncedItems.length; i++) {
+        const item = unsyncedItems[i];
         try {
           const articleText = await fetchArticleText(item);
           await writeNote(this.app, item, articleText, syncFolder);
@@ -157,6 +169,10 @@ export default class RaindropSyncPlugin extends Plugin {
         } catch (err) {
           console.error(`Raindrop Sync: failed to sync item ${item._id}`, err);
           failed++;
+        }
+        // Delay between items, but not after the last one.
+        if (i < unsyncedItems.length - 1) {
+          await sleep(INTER_ITEM_DELAY_MS);
         }
       }
 
